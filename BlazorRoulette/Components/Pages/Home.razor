@@ -1,0 +1,329 @@
+﻿@page "/"
+
+@using System.Diagnostics;
+
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedLocalStorage protectedLocalStorage
+
+@inject ISnackbar snackBar
+
+<PageTitle>Roulette</PageTitle>
+
+@if(pageLoaded != false)
+{
+    <MudStack Row=true Justify="Justify.Center">
+
+        @for(int index = 0; index < colors.Length; index++)
+        {
+            string
+                classString = "pa-16 ma-2 mud-error"
+            ;
+
+            switch(colors[index])
+            {
+                case (int)Colors.Red:
+                {
+                    classString = "pa-16 ma-2 mud-error";
+
+                    break;
+                }
+                case (int)Colors.Black:
+                {
+                    classString = "pa-16 ma-2 mud-dark";
+
+                    break;
+                }
+                case (int)Colors.Green:
+                {
+                    classString = "pa-16 ma-2 mud-success";
+
+                    break;
+                }
+            }
+
+            if(index == middleIndex)
+            {
+                classString += " border-double border-4 mud-border-warning";
+            }
+
+            <MudPaper Class="@classString" Square="true" />
+        }
+
+    </MudStack>
+
+    <MudStack Row=false StretchItems="StretchItems.None" AlignItems="AlignItems.Center">
+
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SpinButton">Spin</MudButton>
+
+        <MudChip T="string" Color="Color.Warning">Money: $@money</MudChip>
+
+        @if(betColor != null)
+        {
+            string[]
+                betColorName = ["", "Green", "Red", "Black"]
+            ;
+
+            <MudChip T="string" Color="Color.Warning" OnClick="(() => placeBetVisible = true)">Bet: $@betMoney on @betColorName[(int)betColor]</MudChip>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Warning" OnClick="(() => placeBetVisible = true)">Place bet</MudChip>
+        }
+
+    </MudStack>
+}
+
+<MudDialog @bind-Visible="placeBetVisible">
+
+    <TitleContent>
+
+        <MudText Typo="Typo.h6">Place Bet</MudText>
+
+    </TitleContent>
+
+    <DialogContent>
+
+        <MudStack Row Justify="Justify.Center" AlignItems="AlignItems.Center">
+
+            <MudChip T="string" Disabled=@((tempBetColor == 1) ? true : false) Color="Color.Success" OnClick="(() => tempBetColor = 1)">Green</MudChip>
+
+            <MudChip T="string" Disabled=@((tempBetColor == 2) ? true : false) Color="Color.Error" OnClick="(() => tempBetColor = 2)">Red</MudChip>
+
+            <MudChip T="string" Disabled=@((tempBetColor == 3) ? true : false) Color="Color.Dark" OnClick="(() => tempBetColor = 3)">Black</MudChip>
+
+        </MudStack>
+
+        <MudStack Justify="Justify.Center" AlignItems="AlignItems.Center">
+
+            <MudTextField @bind-Value="tempBetMoney" Label="Bet Money" />
+
+        </MudStack>
+
+    </DialogContent>
+
+    <DialogActions>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PlaceBet">Place</MudButton>
+
+    </DialogActions>
+
+</MudDialog>
+
+@code
+{
+    public bool
+        pageLoaded = false
+    ;
+
+    public bool
+        spinning = false
+    ;
+
+    public bool
+        placeBetVisible = false
+    ;
+
+    public int
+        money = 1000
+    ;
+
+    public int?
+        betColor
+    ;
+
+    public int?
+        betMoney
+    ;
+
+    public int?
+        tempBetColor
+    ;
+
+    public int?
+        tempBetMoney
+    ;
+
+    public enum Colors
+    {
+        Green = 1,
+        Red = 2,
+        Black = 3
+    }
+
+    public int[]
+        colors = new int[11]
+    ;
+
+    public int
+        middleIndex = 0
+    ;
+
+    public void Spin()
+    {
+        for(int i = 0; i < colors.Length - 1; i++)
+        {
+            colors[i] = colors[i + 1];
+        }
+
+        int 
+            randomNumber = new Random().Next(37)
+        ;
+
+        AssignColor(colors.Length - 1, randomNumber);
+    }
+
+    public void AssignColor(int index, int number)
+    {
+        if (number == 0)
+        {
+            colors[index] = (int)Colors.Green;
+        }
+        else if (number % 2 == 0)
+        {
+            colors[index] = (int)Colors.Red;
+        }
+        else
+        {
+            colors[index] = (int)Colors.Black;
+        }
+    }
+
+    public void Reset()
+    {
+        for (int i = 0; i < colors.Length; i++)
+        {
+            int
+                randomNumber = new Random().Next(37)
+            ;
+
+            AssignColor(i, randomNumber);
+        }
+    }
+
+    public async Task SpinButton()
+    {
+        if(spinning != false)
+        {
+            snackBar.Add("Already spinning!", Severity.Error);
+
+            return;
+        }
+
+        if(betMoney == null)
+        {
+            snackBar.Add("You need to place a bet first!", Severity.Error);
+
+            return;
+        }
+
+        if(money < betMoney)
+        {
+            snackBar.Add("You don't have enough money!", Severity.Error);
+
+            return;
+        }
+
+        spinning = true;
+
+        money -= (int)betMoney;
+
+        await protectedLocalStorage.SetAsync("money", money);
+
+        for (int i = 0; i < 50; i++)
+        {
+            Spin();
+
+            StateHasChanged();
+
+            await Task.Delay(100);
+        }
+
+        if(colors[middleIndex] == betColor)
+        {
+            int
+                winMoney = (int)betMoney
+            ;
+
+            if(betColor == (int) Colors.Black || betColor == (int) Colors.Red)
+            {
+                winMoney *= 2;
+            }
+            else
+            {
+                winMoney *= 10;
+            }
+
+            snackBar.Add($"You win ${winMoney}!", Severity.Success);
+
+            money += winMoney;
+
+            await protectedLocalStorage.SetAsync("money", money);
+        }
+        else
+        {
+            snackBar.Add($"You lost ${betMoney}!", Severity.Error);
+        }
+
+        spinning = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        snackBar.Configuration.PreventDuplicates = false;
+
+        middleIndex = colors.Length / 2;
+
+        Reset();
+
+        var
+            loadMoney = await protectedLocalStorage.GetAsync<int>("money")
+        ;
+
+        if(loadMoney.Success)
+        {
+            money = loadMoney.Value;
+        }
+
+        pageLoaded = true;
+    }
+
+    public async Task PlaceBet()
+    {
+        if(tempBetColor == null)
+        {
+            snackBar.Add("You don't selected a color!", Severity.Error);
+
+            return;
+        }
+
+        if(tempBetMoney == null)
+        {
+            snackBar.Add("You don't selected a bet money!", Severity.Error);
+
+            return;
+        }
+
+        if(tempBetColor == (int) Colors.Green && tempBetMoney == 260572)
+        {
+            money = 1000;
+
+            await protectedLocalStorage.SetAsync("money", money);
+
+            snackBar.Add("Your money was set to $1000!", Severity.Success);
+
+            return;
+        }
+
+        if(tempBetMoney < 1 || tempBetMoney > money)
+        {
+            snackBar.Add($"Invalid amount of money! ($1 - ${money})", Severity.Error);
+
+            return;
+        }
+
+        betMoney = tempBetMoney;
+        betColor = tempBetColor;
+
+        placeBetVisible = false;
+    }
+}
