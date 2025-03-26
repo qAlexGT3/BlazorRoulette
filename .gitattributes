@@ -1,3 +1,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.html linguist-detectable=false
+*.css linguist-detectable=false
+*.json linguist-detectable=false
+*.cshtml linguist-detectable=false
+*.razor linguist-detectable=false
+*.props linguist-detectable=false
+*.targets linguist-detectable=false
+*.cache linguist-detectable=false
