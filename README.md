@@ -20,7 +20,7 @@ BlazorRoulette is a simple roulette application built with **.NET 9**, **Blazor*
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/user/BlazorRoulette.git
+   git clone https://github.com/qAlexGT3/BlazorRoulette.git
    cd BlazorRoulette
    ```
 2. Run the application:
